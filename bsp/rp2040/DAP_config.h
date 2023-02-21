@@ -67,6 +67,11 @@ This information includes:
 #define PROBE_PIN_TRST_MASK (1UL << (PROBE_PIN_TRST))
 #define PROBE_PIN_SRST_MASK (1UL << (PROBE_PIN_SRST))
 
+#define DAP_UART 0
+#define DAP_UART_USB_COM_PORT 0
+
+__STATIC_INLINE void DAP_SETUP (void);
+
 /// Processor Clock of the Cortex-M MCU used in the Debug Unit.
 /// This value is used to calculate the SWD/JTAG clock speed.
 #define CPU_CLOCK               48000000U       ///< Specifies the CPU Clock in Hz.
@@ -77,7 +82,7 @@ This information includes:
 /// require 2 processor cycles for a I/O Port Write operation.  If the Debug Unit uses
 /// a Cortex-M0+ processor with high-speed peripheral I/O only 1 processor cycle might be 
 /// required.
-#define IO_PORT_WRITE_CYCLES    2U              ///< I/O Cycles: 2=default, 1=Cortex-M0+ fast I/0.
+#define IO_PORT_WRITE_CYCLES    1U              ///< I/O Cycles: 2=default, 1=Cortex-M0+ fast I/0.
 
 /// Indicate that Serial Wire Debug (SWD) communication mode is available at the Debug Access Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
@@ -145,18 +150,18 @@ This information includes:
 
 #include "DAP.h"
 
-/** Get Vendor ID string.
-\param str Pointer to buffer to store the string.
-\return String length.
+/** Get Vendor Name string.
+\param str Pointer to buffer to store the string (max 60 characters).
+\return String length (including terminating NULL character) or 0 (no string).
 */
 __STATIC_INLINE uint8_t DAP_GetVendorString (char *str) {
   (void)str;
   return (0U);
 }
 
-/** Get Product ID string.
-\param str Pointer to buffer to store the string.
-\return String length.
+/** Get Product Name string.
+\param str Pointer to buffer to store the string (max 60 characters).
+\return String length (including terminating NULL character) or 0 (no string).
 */
 __STATIC_INLINE uint8_t DAP_GetProductString (char *str) {
   (void)str;
@@ -164,14 +169,92 @@ __STATIC_INLINE uint8_t DAP_GetProductString (char *str) {
 }
 
 /** Get Serial Number string.
-\param str Pointer to buffer to store the string.
-\return String length.
+\param str Pointer to buffer to store the string (max 60 characters).
+\return String length (including terminating NULL character) or 0 (no string).
 */
 __STATIC_INLINE uint8_t DAP_GetSerNumString (char *str) {
   (void)str;
   return (0U);
 }
 
+/** Get Target Device Vendor string.
+\param str Pointer to buffer to store the string (max 60 characters).
+\return String length (including terminating NULL character) or 0 (no string).
+*/
+__STATIC_INLINE uint8_t DAP_GetTargetDeviceVendorString (char *str) {
+#if TARGET_FIXED != 0
+  uint8_t len;
+
+  strcpy(str, TargetDeviceVendor);
+  len = (uint8_t)(strlen(TargetDeviceVendor) + 1U);
+  return (len);
+#else
+  (void)str;
+  return (0U);
+#endif
+}
+
+/** Get Target Device Name string.
+\param str Pointer to buffer to store the string (max 60 characters).
+\return String length (including terminating NULL character) or 0 (no string).
+*/
+__STATIC_INLINE uint8_t DAP_GetTargetDeviceNameString (char *str) {
+#if TARGET_FIXED != 0
+  uint8_t len;
+
+  strcpy(str, TargetDeviceName);
+  len = (uint8_t)(strlen(TargetDeviceName) + 1U);
+  return (len);
+#else
+  (void)str;
+  return (0U);
+#endif
+}
+
+
+/** Get Target Board Vendor string.
+\param str Pointer to buffer to store the string (max 60 characters).
+\return String length (including terminating NULL character) or 0 (no string).
+*/
+__STATIC_INLINE uint8_t DAP_GetTargetBoardVendorString (char *str) {
+#if TARGET_FIXED != 0
+  uint8_t len;
+
+  strcpy(str, TargetBoardVendor);
+  len = (uint8_t)(strlen(TargetBoardVendor) + 1U);
+  return (len);
+#else
+  (void)str;
+  return (0U);
+#endif
+}
+
+/** Get Target Board Name string.
+\param str Pointer to buffer to store the string (max 60 characters).
+\return String length (including terminating NULL character) or 0 (no string).
+*/
+__STATIC_INLINE uint8_t DAP_GetTargetBoardNameString (char *str) {
+#if TARGET_FIXED != 0
+  uint8_t len;
+
+  strcpy(str, TargetBoardName);
+  len = (uint8_t)(strlen(TargetBoardName) + 1U);
+  return (len);
+#else
+  (void)str;
+  return (0U);
+#endif
+}
+
+
+/** Get Product Firmware Version string.
+\param str Pointer to buffer to store the string (max 60 characters).
+\return String length (including terminating NULL character) or 0 (no string).
+*/
+__STATIC_INLINE uint8_t DAP_GetProductFirmwareVersionString (char *str) {
+  (void)str;
+  return (0U);
+}
 ///@}
 
 
@@ -219,7 +302,7 @@ Configures the DAP Hardware I/O pins for JTAG mode:
  - TDO to input mode.
 */ 
 __STATIC_INLINE void PORT_JTAG_SETUP (void) {
-  resets_hw->reset &= ~(RESETS_RESET_IO_BANK0_BITS | RESETS_RESET_PADS_BANK0_BITS);
+  DAP_SETUP();
 
   /* set to default high level */
   sio_hw->gpio_oe_set = PROBE_PIN_TCK_SWCLK_MASK | PROBE_PIN_TMS_SWDIO_MASK | PROBE_PIN_TDI_MASK | PROBE_PIN_TRST_MASK | PROBE_PIN_SRST_MASK;
@@ -251,7 +334,7 @@ Configures the DAP Hardware I/O pins for Serial Wire Debug (SWD) mode:
  - TDI, nTRST to HighZ mode (pins are unused in SWD mode).
 */ 
 __STATIC_INLINE void PORT_SWD_SETUP (void) {
-  resets_hw->reset &= ~(RESETS_RESET_IO_BANK0_BITS | RESETS_RESET_PADS_BANK0_BITS);
+  DAP_SETUP();
 
   /* set to default high level */
   sio_hw->gpio_oe_set = PROBE_PIN_TCK_SWCLK_MASK | PROBE_PIN_TMS_SWDIO_MASK;
@@ -451,7 +534,7 @@ It is recommended to provide the following LEDs for status indication:
            - 0: Connect LED OFF: debugger is not connected to CMSIS-DAP Debug Unit.
 */
 __STATIC_INLINE void LED_CONNECTED_OUT (uint32_t bit) {
-  (void)bit;
+  gpio_put(PICOPROBE_CONNECTED_LED, bit & 1);
 }
 
 /** Debug Unit: Set status Target Running LED.
@@ -460,7 +543,7 @@ __STATIC_INLINE void LED_CONNECTED_OUT (uint32_t bit) {
            - 0: Target Running LED OFF: program execution in target stopped.
 */
 __STATIC_INLINE void LED_RUNNING_OUT (uint32_t bit) {
-  (void)bit;
+  gpio_put(PICOPROBE_RUNNING_LED, bit & 1);
 }
 
 ///@}
@@ -510,7 +593,13 @@ Status LEDs. In detail the operation of Hardware I/O and LED pins are enabled an
  - LED output pins are enabled and LEDs are turned off.
 */
 __STATIC_INLINE void DAP_SETUP (void) {
-  ;
+  resets_hw->reset &= ~(RESETS_RESET_IO_BANK0_BITS | RESETS_RESET_PADS_BANK0_BITS);
+
+  gpio_init(PICOPROBE_LED); gpio_set_dir(PICOPROBE_LED, GPIO_OUT);
+  gpio_init(PICOPROBE_RUNNING_LED); gpio_set_dir(PICOPROBE_RUNNING_LED, GPIO_OUT);
+  gpio_init(PICOPROBE_CONNECTED_LED); gpio_set_dir(PICOPROBE_CONNECTED_LED, GPIO_OUT);
+
+  gpio_put(PICOPROBE_LED, 1);
 }
 
 /** Reset Target Device with custom specific I/O pin or command sequence.
